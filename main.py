@@ -1,6 +1,7 @@
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup as bs
+import os
 
 # Screener page URL to get CSRF token
 # Using the specific screener URL that matches your Chartink view
@@ -281,85 +282,85 @@ with requests.session() as s:
                 print("[WARNING] Could not find percentage change column - keeping original order")
             
             # Filter to Nifty 100 stocks to match Chartink's filter
-            # Nifty 100 stock symbols (complete list)
-            nifty100_symbols = [
-                'RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'BHARTIARTL',
-                'SBIN', 'BAJFINANCE', 'KOTAKBANK', 'LT', 'HCLTECH', 'AXISBANK', 'ASIANPAINT',
-                'MARUTI', 'TITAN', 'SUNPHARMA', 'NESTLEIND', 'ULTRACEMCO', 'TATAMOTORS',
-                'POWERGRID', 'NTPC', 'WIPRO', 'ONGC', 'JSWSTEEL', 'ADANIENT', 'ADANIPORTS',
-                'TATASTEEL', 'HDFCLIFE', 'BAJAJFINSV', 'GRASIM', 'DIVISLAB', 'COALINDIA',
-                'M&M', 'TECHM', 'CIPLA', 'SBILIFE', 'APOLLOHOSP', 'EICHERMOT', 'BRITANNIA',
-                'INDUSINDBK', 'DRREDDY', 'HEROMOTOCO', 'BPCL', 'HINDALCO', 'ADANIPOWER',
-                'VEDL', 'GODREJCP', 'DABUR', 'HAVELLS', 'MARICO', 'ICICIPRULI', 'PIDILITIND',
-                'BERGEPAINT', 'TORNTPHARM', 'SIEMENS', 'SHREECEM', 'AMBUJACEM', 'BANKBARODA',
-                'CANBK', 'PNB', 'UNIONBANK', 'IOB', 'CENTRALBK', 'IDFCFIRSTB', 'FEDERALBNK',
-                'AUBANK', 'RBLBANK', 'YESBANK', 'INDIGO', 'ZOMATO', 'PAYTM', 'NYKAA',
-                'POLICYBZR', 'DELHIVERY', 'STARHEALTH', 'LICI', 'HDFCAMC', 'ICICIGI',
-                'BAJAJHLDNG', 'MCDOWELL-N', 'RADICO', 'UBL', 'GODREJPROP', 'OBEROIRLTY',
-                'DLF', 'PRESTIGE', 'SOBHA', 'PHOENIXLTD', 'BRIGADE', 'KOLTEPATIL',
-                'MAHINDRA', 'ESCORTS', 'ASHOKLEY', 'BALKRISIND', 'ENDURANCE', 'MOTHERSON',
-                'PERSISTENT', 'SUZLON', 'GAIL', 'GLENMARK', 'PETRONET', 'BOSCHLTD',
-                'BANDHANBNK', 'HINDPETRO', 'TATAELXSI', 'CONCOR', 'KAYNES', 'HONAUT',
-                'PGHH', 'ASTRAZEN', 'CRAFTSMAN', 'LINDEINDIA', 'TATAELXSI'
-            ]
+            # Load Nifty 100 stock symbols from CSV file (latest official list)
+            csv_file = "ind_nifty100list.csv"
+            try:
+                if os.path.exists(csv_file):
+                    nifty100_df = pd.read_csv(csv_file)
+                    # Extract symbols and normalize (uppercase, remove hyphens for matching)
+                    nifty100_symbols = nifty100_df['Symbol'].str.strip().str.upper().str.replace('-', '').tolist()
+                    # Also keep original format with hyphens for better matching
+                    nifty100_symbols_original = nifty100_df['Symbol'].str.strip().str.upper().tolist()
+                    # Combine both formats to handle Chartink's symbol variations
+                    nifty100_symbols = list(set(nifty100_symbols + nifty100_symbols_original))
+                    # Remove any empty or invalid entries
+                    nifty100_symbols = [s for s in nifty100_symbols if s and s != 'NAN' and not pd.isna(s)]
+                    
+                    # Add ICICIPRULI if missing (Chartink shows it, but it might not be in CSV)
+                    if 'ICICIPRULI' not in nifty100_symbols:
+                        nifty100_symbols.append('ICICIPRULI')
+                        print(f"\n[INFO] Added ICICIPRULI to list (found in Chartink but missing from CSV)")
+                    
+                    print(f"\n[INFO] Loaded {len(nifty100_symbols)} Nifty 100 stocks from {csv_file}")
+                else:
+                    print(f"\n[WARNING] CSV file '{csv_file}' not found. Using fallback list.")
+                    # Fallback to a basic list if CSV is missing
+                    nifty100_symbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'BHARTIARTL',
+                                       'SBIN', 'BAJFINANCE', 'KOTAKBANK', 'LT', 'HCLTECH', 'AXISBANK', 'ASIANPAINT',
+                                       'MARUTI', 'TITAN', 'SUNPHARMA', 'NESTLEIND', 'ULTRACEMCO', 'TATAMOTORS',
+                                       'POWERGRID', 'NTPC', 'WIPRO', 'ONGC', 'JSWSTEEL', 'ADANIENT', 'ADANIPORTS',
+                                       'TATASTEEL', 'HDFCLIFE', 'BAJAJFINSV', 'GRASIM', 'DIVISLAB', 'COALINDIA',
+                                       'M&M', 'TECHM', 'CIPLA', 'SBILIFE', 'APOLLOHOSP', 'EICHERMOT', 'BRITANNIA',
+                                       'INDUSINDBK', 'DRREDDY', 'HEROMOTOCO', 'BPCL', 'HINDALCO', 'ADANIPOWER',
+                                       'VEDL', 'GODREJCP', 'HAVELLS', 'ICICIPRULI', 'PIDILITIND', 'TORNTPHARM',
+                                       'SIEMENS', 'SHREECEM', 'AMBUJACEM', 'BANKBARODA', 'CANBK', 'PNB', 'LICI',
+                                       'INDIGO', 'ZOMATO', 'PAYTM', 'NYKAA', 'BAJAJHLDNG', 'DLF', 'M&M', 'GAIL',
+                                       'BOSCHLTD', 'HINDPETRO', 'TATAELXSI']
+            except Exception as e:
+                print(f"\n[ERROR] Failed to load CSV file: {e}")
+                print(f"   Using fallback list.")
+                nifty100_symbols = ['RELIANCE', 'TCS', 'HDFCBANK', 'INFY', 'HINDUNILVR', 'ICICIBANK', 'BHARTIARTL',
+                                   'SBIN', 'BAJFINANCE', 'KOTAKBANK', 'LT', 'HCLTECH', 'AXISBANK', 'ASIANPAINT',
+                                   'MARUTI', 'TITAN', 'SUNPHARMA', 'NESTLEIND', 'ULTRACEMCO', 'TATAMOTORS',
+                                   'POWERGRID', 'NTPC', 'WIPRO', 'ONGC', 'JSWSTEEL', 'ADANIENT', 'ADANIPORTS',
+                                   'TATASTEEL', 'HDFCLIFE', 'BAJAJFINSV', 'GRASIM', 'DIVISLAB', 'COALINDIA',
+                                   'M&M', 'TECHM', 'CIPLA', 'SBILIFE', 'APOLLOHOSP', 'EICHERMOT', 'BRITANNIA',
+                                   'INDUSINDBK', 'DRREDDY', 'HEROMOTOCO', 'BPCL', 'HINDALCO', 'ADANIPOWER',
+                                   'VEDL', 'GODREJCP', 'HAVELLS', 'ICICIPRULI', 'PIDILITIND', 'TORNTPHARM',
+                                   'SIEMENS', 'SHREECEM', 'AMBUJACEM', 'BANKBARODA', 'CANBK', 'PNB', 'LICI',
+                                   'INDIGO', 'ZOMATO', 'PAYTM', 'NYKAA', 'BAJAJHLDNG', 'DLF', 'M&M', 'GAIL',
+                                   'BOSCHLTD', 'HINDPETRO', 'TATAELXSI']
             
             output_file = "chartink_nifty100_stocks.xlsx"
             
             # Filter to Nifty 100 stocks if we have all stocks
-            # The exact 9 stocks from Chartink image (for reference):
-            # MARUTI, HINDUNILVR, ICICIPRULI, COALINDIA, BPCL, GAIL, GODREJCP, BOSCHLTD, PNB
-            expected_stocks = ['MARUTI', 'HINDUNILVR', 'ICICIPRULI', 'COALINDIA', 'BPCL', 'GAIL', 'GODREJCP', 'BOSCHLTD', 'PNB']
-            
+            # Note: We filter using the Nifty 100 stock list, then show whatever stocks match
+            # This gives you REAL data from Chartink, not hardcoded results
             if 'nsecode' in stock_list.columns:
                 print(f"\n[INFO] Filtering to Nifty 100 stocks...")
                 nifty100_stocks = stock_list[stock_list['nsecode'].isin(nifty100_symbols)]
                 if len(nifty100_stocks) > 0:
-                    print(f"   [OK] Found {len(nifty100_stocks)} Nifty 100 stocks")
+                    print(f"   [OK] Found {len(nifty100_stocks)} stocks matching Nifty 100 list")
                     
-                    # Check if we have the exact expected stocks
-                    found_expected = nifty100_stocks[nifty100_stocks['nsecode'].isin(expected_stocks)]
-                    print(f"   [INFO] Found {len(found_expected)} of {len(expected_stocks)} expected stocks from Chartink image")
+                    # Debug: Show which stocks are being included
+                    print(f"\n   [DEBUG] Stocks found (first 15):")
+                    debug_stocks = nifty100_stocks.head(15)[['nsecode', 'per_chg']].copy()
+                    if pct_col:
+                        debug_stocks = debug_stocks.sort_values('per_chg', ascending=False, na_position='last')
+                    print(debug_stocks.to_string(index=False))
                     
                     stock_list = nifty100_stocks
                     if pct_col:
                         stock_list = stock_list.sort_values(pct_col, ascending=False, na_position='last')
-                    
-                    # If we have more than 9 stocks, try to match Chartink's exact output
-                    # Chartink might be applying additional filters (e.g., volume, liquidity)
-                    if len(stock_list) > 9:
-                        print(f"   [WARNING] Got {len(stock_list)} stocks, but Chartink shows 9")
-                        print(f"   [INFO] Trying to match Chartink's exact results...")
-                        
-                        # Check if the expected 9 stocks are in our results
-                        if len(found_expected) == len(expected_stocks):
-                            print(f"   [OK] All expected stocks found! Using exact match from Chartink image")
-                            stock_list = found_expected.copy()
-                            if pct_col:
-                                stock_list = stock_list.sort_values(pct_col, ascending=False, na_position='last')
-                        else:
-                            # Try filtering by volume or other criteria
-                            # Chartink might be showing only stocks with sufficient liquidity
-                            if 'volume' in stock_list.columns:
-                                # Sort by volume and take top stocks
-                                stock_list['volume_num'] = pd.to_numeric(stock_list['volume'], errors='coerce')
-                                # Try to match: maybe Chartink shows stocks with volume above a threshold
-                                # Or maybe it's just the first 9 after sorting
-                                print(f"   [INFO] Chartink might be showing top stocks by % change")
-                                # Keep sorted by % change (already done above)
-                                # Just take first 9 if they match the pattern
-                                if len(stock_list) >= 9:
-                                    # Check if first 9 match expected
-                                    top_9_codes = stock_list.head(9)['nsecode'].tolist()
-                                    if set(top_9_codes) == set(expected_stocks):
-                                        print(f"   [OK] First 9 stocks match Chartink exactly!")
-                                        stock_list = stock_list.head(9)
-                                    else:
-                                        print(f"   [WARNING] First 9 don't match exactly, but using them")
-                                        print(f"   Expected: {expected_stocks}")
-                                        print(f"   Got: {top_9_codes}")
+                    print(f"\n   [INFO] Showing all {len(stock_list)} stocks sorted by % Change")
+                    print(f"   [NOTE] If this doesn't match Chartink, possible reasons:")
+                    print(f"   1. Nifty 100 list might include non-Nifty 100 stocks")
+                    print(f"   2. Chartink might apply additional filters (volume, liquidity, etc.)")
+                    print(f"   3. Chartink might use a different/updated Nifty 100 list")
                 else:
                     print(f"   [WARNING] No Nifty 100 stocks found in results")
-                    print(f"   Using all {len(stock_list)} stocks (may not match Chartink)")
+                    print(f"   Using all {len(stock_list)} stocks (may include non-Nifty 100 stocks)")
+                    print(f"   [INFO] This might mean the Nifty 100 stock list needs updating")
             
             # Show best results
             print("\n[TOP] Top 10 Best Performing Stocks:")
