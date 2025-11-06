@@ -126,7 +126,16 @@ if not nifty100_symbols:
     print("[ERROR] Could not load Nifty 100 list. Exiting.")
     exit(1)
 
-print(f"\n[INFO] Loaded {len(nifty100_symbols)} Nifty 100 stocks from CSV")
+# Get CSV file modification date for reference
+import os
+from datetime import datetime
+csv_file = "ind_nifty100list.csv"
+csv_date_info = ""
+if os.path.exists(csv_file):
+    csv_modified = datetime.fromtimestamp(os.path.getmtime(csv_file))
+    csv_date_info = f" (CSV last modified: {csv_modified.strftime('%Y-%m-%d %H:%M')})"
+
+print(f"\n[INFO] Loaded {len(nifty100_symbols)} Nifty 100 stocks from CSV{csv_date_info}")
 
 # Create session
 with requests.session() as s:
@@ -195,6 +204,26 @@ with requests.session() as s:
             wb = load_workbook(output_file)
             ws = wb['Gainers & Losers']
             
+            # Add timestamp and CSV info in first row (insert before data)
+            from datetime import datetime
+            import os
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
+            
+            # Get CSV file info
+            csv_file = "ind_nifty100list.csv"
+            csv_info = ""
+            if os.path.exists(csv_file):
+                csv_modified = datetime.fromtimestamp(os.path.getmtime(csv_file))
+                csv_info = f" | CSV: {len(nifty100_symbols)} stocks (updated: {csv_modified.strftime('%Y-%m-%d')})"
+            
+            ws.insert_rows(1)
+            timestamp_cell = ws.cell(row=1, column=1)
+            timestamp_cell.value = f"Last Updated: {timestamp}{csv_info}"
+            timestamp_cell.font = Font(bold=True, size=10, color="666666")
+            timestamp_cell.alignment = Alignment(horizontal='left', vertical='center')
+            # Merge cells for timestamp
+            ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(available_cols))
+            
             # Header formatting
             header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
             header_font = Font(bold=True, color="FFFFFF", size=11)
@@ -205,15 +234,15 @@ with requests.session() as s:
                 bottom=Side(style='thin')
             )
             
-            # Format header row
-            for cell in ws[1]:
+            # Format header row (now row 2 because timestamp is in row 1)
+            for cell in ws[2]:
                 cell.fill = header_fill
                 cell.font = header_font
                 cell.alignment = Alignment(horizontal='center', vertical='center')
                 cell.border = border
             
-            # Format data rows and add borders
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            # Format data rows and add borders (start from row 3 because row 1 is timestamp, row 2 is header)
+            for row in ws.iter_rows(min_row=3, max_row=ws.max_row):
                 for cell in row:
                     cell.border = border
                     cell.alignment = Alignment(horizontal='left', vertical='center')
@@ -235,7 +264,8 @@ with requests.session() as s:
             if 'Section' in final_df.columns:
                 section_col_idx = available_cols.index('Section') + 1
                 current_section = None
-                for row_idx, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row), start=2):
+                # Start from row 3 (row 1 is timestamp, row 2 is header)
+                for row_idx, row in enumerate(ws.iter_rows(min_row=3, max_row=ws.max_row), start=3):
                     section_value = ws.cell(row=row_idx, column=section_col_idx).value
                     if section_value != current_section:
                         current_section = section_value
